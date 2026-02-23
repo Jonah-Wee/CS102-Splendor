@@ -1,1 +1,1 @@
-"# CS102-Splendor" 
+# CS102-Splendor
