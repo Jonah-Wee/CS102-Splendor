@@ -42,6 +42,57 @@ public class Player {
     public List<Noble> getNobles() {
         return nobles;
     }
+
+    public int getGemCount(GemColor color) {
+        Integer count = gems.get(color);
+        return count == null ? 0 : count;
+    }
+
+    public int getTotalGems() {
+        int total = 0;
+        for (GemColor color : GemColor.values()) {
+            total += getGemCount(color);
+        }
+        return total;
+    }
+
+    public int getBonusCount(GemColor color) {
+        int total = 0;
+        for (Card card : purchasedCards) {
+            if (card.getBonus() == color) {
+                total++;
+            }
+        }
+        return total;
+    }
+
+    public void addGem(GemColor color, int amount) {
+        gems.put(color, getGemCount(color) + amount);
+    }
+
+    public boolean removeGem(GemColor color, int amount) {
+        if (getGemCount(color) < amount) {
+            return false;
+        }
+        gems.put(color, getGemCount(color) - amount);
+        return true;
+    }
+
+    public void addPurchasedCard(Card card) {
+        purchasedCards.add(card);
+    }
+
+    public void addReservedCard(Card card) {
+        reservedCards.add(card);
+    }
+
+    public Card removeReservedCard(int index) {
+        return reservedCards.remove(index);
+    }
+
+    public void addNoble(Noble noble) {
+        nobles.add(noble);
+    }
     
     public int getPoints() {
         int total = 0;
