@@ -1,7 +1,5 @@
 package splendor.logic;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
 import splendor.entities.Card;
 import splendor.entities.GemBank;
@@ -26,6 +24,14 @@ public class GameEngine {
 
     public Player getCurrentPlayer() {
         return gameState.getCurrentPlayer();
+    }
+
+    // can current player afford this visible card?
+    public boolean canAffordCurrentPlayer(Card card) {
+        if (card == null) {
+            throw new IllegalArgumentException("card cannot be null");
+        }
+        return canAfford(getCurrentPlayer(), card);
     }
 
     public boolean takeThreeDifferentGems(GemColor first, GemColor second, GemColor third) {
