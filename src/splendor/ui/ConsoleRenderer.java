@@ -8,7 +8,7 @@ import splendor.entities.Noble;
 import splendor.entities.Player;
 import splendor.entities.Tier;
 import splendor.logic.GameState;
-
+// this class has methods to help format the output for aesthetics
 public class ConsoleRenderer {
     private static final String TOP_LEFT_CORNER = "\u250C";
     private static final String TOP_RIGHT_CORNER = "\u2510";
@@ -233,7 +233,7 @@ public class ConsoleRenderer {
     }
 
     private void printCurrentPlayer(Player player) {
-        System.out.println(sectionTitle("Your Tableau - " + player.getName()));
+        System.out.println(sectionTitle("Your Hand - " + player.getName()));
         String summary = "Points=" + player.getPoints()
                 + "   Tokens=" + player.getTotalGems() + "/10"
                 + "   Bonuses=" + formatBonusSummary(player);
