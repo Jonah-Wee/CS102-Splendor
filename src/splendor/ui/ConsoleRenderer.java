@@ -100,6 +100,19 @@ public class ConsoleRenderer {
         System.out.println();
     }
 
+    public void printGemChoicesFromPlayer(String title, List<GemColor> options, Player player) {
+        System.out.println(sectionTitle(title));
+        for (int i = 0; i < options.size(); i++) {
+            GemColor color = options.get(i);
+            String label = "  [" + (i + 1) + "] "
+                    + gemIcon(color) + " "
+                    + padRight(Ansi.wrap(Ansi.colorForGem(color), color.name()), 18)
+                    + " hand=" + styledAmount(color, player.getGemCount(color));
+            System.out.println(label);
+        }
+        System.out.println();
+    }
+
     public void printGemSelectionSummary(List<GemColor> selections) {
         System.out.println(sectionTitle("Selected Gems"));
         System.out.println("  " + formatGemSelection(selections));

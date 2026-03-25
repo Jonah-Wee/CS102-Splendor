@@ -69,11 +69,11 @@ public record AIAction(
         return switch (type) {
             case TAKE_GEMS     -> "Take gems: " + gems;
             case BUY_CARD      -> buyingReserved
-                    ? "Buy reserved card #" + reservedIndex
-                    : "Buy card [tier=" + tier + ", slot=" + slotIndex + "]";
+                    ? "Buy reserved card #" + (reservedIndex + 1)
+                    : "Buy card [tier=" + tier + ", slot=" + (slotIndex + 1) + "]";
             case RESERVE_CARD  -> slotIndex == -1
                     ? "Reserve top of deck [tier=" + tier + "]"
-                    : "Reserve card [tier=" + tier + ", slot=" + slotIndex + "]";
+                    : "Reserve card [tier=" + tier + ", slot=" + (slotIndex + 1) + "]";
         };
     }
 }

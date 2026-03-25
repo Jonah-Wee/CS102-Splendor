@@ -8,7 +8,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import splendor.data.CardLoader;
 import splendor.data.NobleLoader;
@@ -19,21 +18,19 @@ import splendor.entities.GemBank;
 import splendor.entities.Noble;
 import splendor.entities.Player;
 import splendor.entities.Tier;
-import splendor.logic.ai.AIStrategy;
-import splendor.logic.ai.RuleBasedStrategy;
+import splendor.logic.ai.AIDifficulty;
 
 public class GameSetup {
     private static final int DEFAULT_WIN_POINTS = 15;
 
-    public static GameState createGame(List<String> playerNames, Set<String> aiPlayerNames,
+    public static GameState createGame(List<String> playerNames, Map<String, AIDifficulty> aiDifficulties,
         String cardFilePath, String nobleFilePath, String configFilePath) throws IOException {
 
         List<Player> players = new ArrayList<Player>();
-        AIStrategy aiStrategy = new RuleBasedStrategy();
 
         for (String name : playerNames) {
-            if (aiPlayerNames.contains(name)) {
-                players.add(new AIPlayer(name, aiStrategy));
+            if (aiDifficulties.containsKey(name)) {
+                players.add(new AIPlayer(name, aiDifficulties.get(name).createStrategy()));
             } else {
                 players.add(new Player(name));
             }

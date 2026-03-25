@@ -32,6 +32,10 @@ public class AIPlayer extends Player {
         return strategy.selectAction(state, this);
     }
 
+    public GemColor chooseGemToDiscard(GameState state) {
+        return strategy.chooseGemToDiscard(state, this);
+    }
+
     /** Convenience check used in ConsoleGameUI and GameEngine. */
     public static boolean isAI(Player player) {
         return player instanceof AIPlayer;
