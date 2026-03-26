@@ -1,13 +1,6 @@
 # Splendor Test Cases
 
-Full test run completed on `2026-03-26`.
-
 Result: `65/65` test cases passed.
-
-Method used:
-- compiled the project with JDK 25
-- ran a temporary Java test harness for rule-engine, AI, endgame, and regression checks
-- ran targeted CLI/input smoke tests where needed
 
 ## Setup & Config
 
@@ -104,4 +97,3 @@ Method used:
 ## Notes
 
 - No gameplay logic failures were found in this test run.
-- The only environment quirk during automated capture was that some Unicode box-drawing characters and emojis displayed as `?` in this shell output, but the game logic and test assertions were unaffected.
