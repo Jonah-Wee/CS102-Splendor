@@ -109,6 +109,15 @@ public class ConsoleGameUI {
         GameState state = engine.getGameState();
         AIAction action = ai.chooseAction(state);
 
+        if (action == null) {
+            renderer.printInfo("[AI] " + ai.getName() + " has no valid move and skips the turn.");
+            pauseForEnter();
+            if (!engine.isGameOver()) {
+                engine.nextTurn();
+            }
+            return;
+        }
+
         System.out.println("\n[AI] " + ai.getName() + " decides: " + action);
 
         boolean success = switch (action.type()) {
@@ -116,12 +125,11 @@ public class ConsoleGameUI {
                 List<GemColor> gems = action.gems();
                 if (gems.size() == 2 && gems.get(0) == gems.get(1)) {
                     yield engine.takeTwoSameGems(gems.get(0));
-                } else {
-                    GemColor first  = gems.size() > 0 ? gems.get(0) : null;
-                    GemColor second = gems.size() > 1 ? gems.get(1) : null;
-                    GemColor third  = gems.size() > 2 ? gems.get(2) : null;
-                    yield engine.takeThreeDifferentGems(first, second, third);
                 }
+                if (gems.size() == 3) {
+                    yield engine.takeThreeDifferentGems(gems.get(0), gems.get(1), gems.get(2));
+                }
+                yield false;
             }
             case BUY_CARD -> {
                 if (action.buyingReserved()) {
