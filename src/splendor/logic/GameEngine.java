@@ -88,6 +88,26 @@ public class GameEngine {
         return true;
     }
 
+    public boolean takeDifferentGems(List<GemColor> colors) {
+        if (colors == null || colors.size() != 3) {
+            return false;
+        }
+        return takeThreeDifferentGems(colors.get(0), colors.get(1), colors.get(2));
+    }
+
+    public boolean discardGem(GemColor color) {
+        if (color == null) {
+            throw new IllegalArgumentException("Gem color cannot be null");
+        }
+        Player player = getCurrentPlayer();
+        if (player.getGemCount(color) < 1) {
+            return false;
+        }
+        player.removeGem(color, 1);
+        gameState.getGemBank().addGem(color);
+        return true;
+    }
+
     public boolean reserveVisibleCard(Tier tier, int slotIndex) {
         if (tier == null) {
             throw new IllegalArgumentException("Tier cannot be null");

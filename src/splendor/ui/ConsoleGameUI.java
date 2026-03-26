@@ -2,21 +2,21 @@ package splendor.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
-import java.util.Set;
 
+import splendor.entities.AIPlayer;
 import splendor.entities.Card;
 import splendor.entities.GemColor;
-import splendor.entities.Noble;
 import splendor.entities.Player;
 import splendor.entities.Tier;
 import splendor.logic.GameEngine;
 import splendor.logic.GameSetup;
 import splendor.logic.GameState;
-import splendor.entities.AIPlayer;
 import splendor.logic.ai.AIAction;
+import splendor.logic.ai.AIDifficulty;
 
 public class ConsoleGameUI {
     private static final int ACTION_TAKE_THREE_DIFFERENT = 1;
@@ -25,7 +25,8 @@ public class ConsoleGameUI {
     private static final int ACTION_RESERVE_TOP = 4;
     private static final int ACTION_BUY_VISIBLE = 5;
     private static final int ACTION_BUY_RESERVED = 6;
-    private static final int ACTION_QUIT = 7;
+    private static final int ACTION_PASS = 7;
+    private static final int ACTION_QUIT = 8;
 
     private final Scanner scanner;
     private final ConsoleRenderer renderer;
@@ -77,21 +78,20 @@ public class ConsoleGameUI {
             playerNames.add(name);
         }
 
-        Set<String> aiPlayerNames = new HashSet<>();
+        Map<String, AIDifficulty> aiDifficulties = new HashMap<String, AIDifficulty>();
         for (String name : playerNames) {
             System.out.print("Is \"" + name + "\" a human player? (y/n): ");
             String answer = scanner.nextLine().trim().toLowerCase();
             if (!answer.isEmpty() && !answer.startsWith("y")) {
-                aiPlayerNames.add(name);
-                System.out.println("  → " + name + " will be controlled by the AI.");
+                AIDifficulty difficulty = readAIDifficulty(name);
+                aiDifficulties.put(name, difficulty);
+                System.out.println("  -> " + name + " will be controlled by the AI (" + difficulty + ").");
             }
         }
 
-        return GameSetup.createGame(
-                playerNames,
-                aiPlayerNames,
-                "config.properties");
+        return GameSetup.createGame(playerNames, aiDifficulties, "config.properties");
     }
+
     void runTurn(GameEngine engine) {
         Player current = engine.getCurrentPlayer();
 
@@ -152,14 +152,14 @@ public class ConsoleGameUI {
             renderer.printSuccess(lastSuccessMessage);
             pauseForEnter();
             if (!engine.isGameOver()) {
-                engine.nextTurn(); 
+                engine.nextTurn();
             }
         } else {
-            renderer.printError("[AI] Action failed — skipping turn.");
+            renderer.printError("[AI] Action failed - skipping turn.");
             pauseForEnter();
             engine.nextTurn();
         }
-}
+    }
 
     private void handleHumanTurn(GameEngine engine) {
         boolean turnFinished = false;
@@ -210,6 +210,10 @@ public class ConsoleGameUI {
             }
             if (choice == ACTION_BUY_RESERVED) {
                 return handleBuyReservedCard(engine);
+            }
+            if (choice == ACTION_PASS) {
+                lastSuccessMessage = "Turn passed - no actions available.";
+                return true;
             }
 
             return confirmQuit();
@@ -428,6 +432,11 @@ public class ConsoleGameUI {
         addActionMenuItem(availableActions, ACTION_BUY_RESERVED, "Buy a reserved card",
                 getBuyReservedCardUnavailableReason(engine));
 
+        if (availableActions.isEmpty()) {
+            availableActions.add(ACTION_PASS);
+            renderer.printActionOption(availableActions.size(), "Pass turn");
+        }
+
         availableActions.add(ACTION_QUIT);
         renderer.printActionOption(availableActions.size(), "Quit");
         return availableActions;
@@ -488,6 +497,16 @@ public class ConsoleGameUI {
 
             renderer.printError("Please enter 0 to go back or a number from " + min + " to " + max + ".");
         }
+    }
+
+    private AIDifficulty readAIDifficulty(String playerName) {
+        AIDifficulty[] values = AIDifficulty.values();
+        System.out.println("  Select difficulty for " + playerName + ":");
+        for (int i = 0; i < values.length; i++) {
+            System.out.println("    [" + (i + 1) + "] " + values[i]);
+        }
+        int choice = readIntInRange("  Difficulty: ", 1, values.length);
+        return values[choice - 1];
     }
 
     private String readNonEmptyLine(String prompt) {
