@@ -30,12 +30,14 @@ public class ConsoleGameUI {
     private final Scanner scanner;
     private final ConsoleRenderer renderer;
     private boolean quitRequested;
+    private boolean actionCancelled;
     private String lastSuccessMessage;
 
     public ConsoleGameUI() {
         this.scanner = new Scanner(System.in);
         this.renderer = new ConsoleRenderer();
         this.quitRequested = false;
+        this.actionCancelled = false;
         this.lastSuccessMessage = "Action completed.";
     }
 
@@ -88,8 +90,6 @@ public class ConsoleGameUI {
         return GameSetup.createGame(
                 playerNames,
                 aiPlayerNames,
-                "src/splendor/data/cards.csv",
-                "src/splendor/data/nobles.csv",
                 "config.properties");
     }
     void runTurn(GameEngine engine) {
@@ -165,6 +165,7 @@ public class ConsoleGameUI {
 
             int choice = readIntInRange("Choose action: ", 1, availableActions.size());
             int actionCode = availableActions.get(choice - 1);
+            actionCancelled = false;
             lastSuccessMessage = "Action completed.";
             turnFinished = handleActionChoice(engine, actionCode);
 
@@ -178,7 +179,7 @@ public class ConsoleGameUI {
                 if (!engine.isGameOver()) {
                     engine.nextTurn();
                 }
-            } else if (!quitRequested) {
+            } else if (!quitRequested && !actionCancelled) {
                 pauseForEnter();
             }
         }
@@ -205,8 +206,7 @@ public class ConsoleGameUI {
                 return handleBuyReservedCard(engine);
             }
 
-            quitRequested = true;
-            return true;
+            return confirmQuit();
         } catch (IllegalArgumentException e) {
             renderer.printError("Invalid input: " + e.getMessage());
             return false;
@@ -227,20 +227,30 @@ public class ConsoleGameUI {
         }
 
         renderer.printInfo("Pick 3 different gem colors.");
-        GemColor first = readGemColorFromOptions(firstOptions, engine.getGameState(), "First color: ");
+        GemColor first = readGemColorFromOptionsOrCancel(
+                firstOptions, engine.getGameState(), "First color (0 to go back): ");
+        if (first == null) {
+            return cancelCurrentAction();
+        }
 
         List<GemColor> secondExcluded = new ArrayList<GemColor>();
         secondExcluded.add(first);
-        GemColor second = readGemColorFromOptions(
+        GemColor second = readGemColorFromOptionsOrCancel(
                 getAvailableGemColors(engine, 1, secondExcluded), engine.getGameState(),
-                "Second color: ");
+                "Second color (0 to go back): ");
+        if (second == null) {
+            return cancelCurrentAction();
+        }
 
         List<GemColor> thirdExcluded = new ArrayList<GemColor>();
         thirdExcluded.add(first);
         thirdExcluded.add(second);
-        GemColor third = readGemColorFromOptions(
+        GemColor third = readGemColorFromOptionsOrCancel(
                 getAvailableGemColors(engine, 1, thirdExcluded), engine.getGameState(),
-                "Third color: ");
+                "Third color (0 to go back): ");
+        if (third == null) {
+            return cancelCurrentAction();
+        }
 
         List<GemColor> selections = new ArrayList<GemColor>();
         selections.add(first);
@@ -248,8 +258,7 @@ public class ConsoleGameUI {
         selections.add(third);
 
         if (!confirmGemSelections(selections)) {
-            renderer.printInfo("Gem selection cancelled.");
-            return false;
+            return cancelCurrentAction();
         }
 
         boolean success = engine.takeThreeDifferentGems(first, second, third);
@@ -272,15 +281,18 @@ public class ConsoleGameUI {
             return false;
         }
 
-        GemColor color = readGemColorFromOptions(options, engine.getGameState(), "Choose color to take 2 of: ");
+        GemColor color = readGemColorFromOptionsOrCancel(
+                options, engine.getGameState(), "Choose color to take 2 of (0 to go back): ");
+        if (color == null) {
+            return cancelCurrentAction();
+        }
 
         List<GemColor> selections = new ArrayList<GemColor>();
         selections.add(color);
         selections.add(color);
 
         if (!confirmGemSelections(selections)) {
-            renderer.printInfo("Gem selection cancelled.");
-            return false;
+            return cancelCurrentAction();
         }
 
         boolean success = engine.takeTwoSameGems(color);
@@ -302,11 +314,18 @@ public class ConsoleGameUI {
             return false;
         }
 
-        Tier tier = readTierFromOptions(tierOptions, engine.getGameState(), "Choose tier to reserve from: ");
+        Tier tier = readTierFromOptionsOrCancel(
+                tierOptions, engine.getGameState(), "Choose tier to reserve from (0 to go back): ");
+        if (tier == null) {
+            return cancelCurrentAction();
+        }
         List<Card> visibleCards = engine.getGameState().getVisibleCards(tier);
 
         renderer.printCardChoices("Visible Cards In Tier " + getTierNumber(tier), visibleCards);
-        int index = readIntInRange("Card number to reserve: ", 1, visibleCards.size());
+        Integer index = readIntInRangeOrCancel("Card number to reserve (0 to go back): ", 1, visibleCards.size());
+        if (index == null) {
+            return cancelCurrentAction();
+        }
         return engine.reserveVisibleCard(tier, index - 1);
     }
 
@@ -322,7 +341,11 @@ public class ConsoleGameUI {
             return false;
         }
 
-        Tier tier = readTierFromOptions(tierOptions, engine.getGameState(), "Choose tier to reserve from the top: ");
+        Tier tier = readTierFromOptionsOrCancel(
+                tierOptions, engine.getGameState(), "Choose tier to reserve from the top (0 to go back): ");
+        if (tier == null) {
+            return cancelCurrentAction();
+        }
         return engine.reserveTopCard(tier);
     }
 
@@ -333,7 +356,11 @@ public class ConsoleGameUI {
             return false;
         }
 
-        Tier tier = readTierFromOptions(tierOptions, engine.getGameState(), "Choose tier to buy from: ");
+        Tier tier = readTierFromOptionsOrCancel(
+                tierOptions, engine.getGameState(), "Choose tier to buy from (0 to go back): ");
+        if (tier == null) {
+            return cancelCurrentAction();
+        }
         List<Integer> affordableIndices = getAffordableVisibleCardIndices(engine, tier);
         List<Card> affordableCards = new ArrayList<Card>();
         for (int index : affordableIndices) {
@@ -341,7 +368,10 @@ public class ConsoleGameUI {
         }
 
         renderer.printCardChoices("Affordable Cards In Tier " + getTierNumber(tier), affordableCards);
-        int option = readIntInRange("Card number to buy: ", 1, affordableCards.size());
+        Integer option = readIntInRangeOrCancel("Card number to buy (0 to go back): ", 1, affordableCards.size());
+        if (option == null) {
+            return cancelCurrentAction();
+        }
         int actualIndex = affordableIndices.get(option - 1);
         return engine.buyVisibleCard(tier, actualIndex);
     }
@@ -365,7 +395,11 @@ public class ConsoleGameUI {
         }
 
         renderer.printCardChoices("Affordable Reserved Cards", affordableCards);
-        int option = readIntInRange("Reserved card number to buy: ", 1, affordableCards.size());
+        Integer option = readIntInRangeOrCancel(
+                "Reserved card number to buy (0 to go back): ", 1, affordableCards.size());
+        if (option == null) {
+            return cancelCurrentAction();
+        }
         int actualIndex = affordableIndices.get(option - 1);
         return engine.buyReservedCard(actualIndex);
     }
@@ -393,15 +427,21 @@ public class ConsoleGameUI {
         return availableActions;
     }
 
-    private Tier readTierFromOptions(List<Tier> tierOptions, GameState gameState, String prompt) {
+    private Tier readTierFromOptionsOrCancel(List<Tier> tierOptions, GameState gameState, String prompt) {
         renderer.printTierChoices("Choose A Tier", tierOptions, gameState);
-        int choice = readIntInRange(prompt, 1, tierOptions.size());
+        Integer choice = readIntInRangeOrCancel(prompt, 1, tierOptions.size());
+        if (choice == null) {
+            return null;
+        }
         return tierOptions.get(choice - 1);
     }
 
-    private GemColor readGemColorFromOptions(List<GemColor> options, GameState gameState, String prompt) {
+    private GemColor readGemColorFromOptionsOrCancel(List<GemColor> options, GameState gameState, String prompt) {
         renderer.printGemChoices("Choose A Gem Color", options, gameState);
-        int choice = readIntInRange(prompt, 1, options.size());
+        Integer choice = readIntInRangeOrCancel(prompt, 1, options.size());
+        if (choice == null) {
+            return null;
+        }
         return options.get(choice - 1);
     }
 
@@ -420,6 +460,27 @@ public class ConsoleGameUI {
             }
 
             renderer.printError("Please enter a number from " + min + " to " + max + ".");
+        }
+    }
+
+    private Integer readIntInRangeOrCancel(String prompt, int min, int max) {
+        while (true) {
+            System.out.print(renderer.prompt(prompt));
+            String line = scanner.nextLine().trim();
+
+            try {
+                int value = Integer.parseInt(line);
+                if (value == 0) {
+                    return null;
+                }
+                if (value >= min && value <= max) {
+                    return value;
+                }
+            } catch (NumberFormatException e) {
+                // Ask again below.
+            }
+
+            renderer.printError("Please enter 0 to go back or a number from " + min + " to " + max + ".");
         }
     }
 
@@ -621,9 +682,22 @@ public class ConsoleGameUI {
         scanner.nextLine();
     }
 
+    private boolean cancelCurrentAction() {
+        actionCancelled = true;
+        return false;
+    }
+
     private boolean confirmGemSelections(List<GemColor> selections) {
         renderer.printGemSelectionSummary(selections);
         return readYesNo("Confirm gem selections? (y/n): ");
+    }
+
+    private boolean confirmQuit() {
+        if (readYesNo("Are you sure you want to quit? (y/n): ")) {
+            quitRequested = true;
+            return true;
+        }
+        return cancelCurrentAction();
     }
 
     private boolean readYesNo(String prompt) {
