@@ -2,21 +2,21 @@ package splendor.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
-import java.util.Set;
 
+import splendor.entities.AIPlayer;
 import splendor.entities.Card;
 import splendor.entities.GemColor;
-import splendor.entities.Noble;
 import splendor.entities.Player;
 import splendor.entities.Tier;
 import splendor.logic.GameEngine;
 import splendor.logic.GameSetup;
 import splendor.logic.GameState;
-import splendor.entities.AIPlayer;
 import splendor.logic.ai.AIAction;
+import splendor.logic.ai.AIDifficulty;
 
 public class ConsoleGameUI {
     private static final int ACTION_TAKE_THREE_DIFFERENT = 1;
@@ -25,7 +25,8 @@ public class ConsoleGameUI {
     private static final int ACTION_RESERVE_TOP = 4;
     private static final int ACTION_BUY_VISIBLE = 5;
     private static final int ACTION_BUY_RESERVED = 6;
-    private static final int ACTION_QUIT = 7;
+    private static final int ACTION_PASS = 7;
+    private static final int ACTION_QUIT = 8;
 
     private final Scanner scanner;
     private final ConsoleRenderer renderer;
@@ -77,21 +78,18 @@ public class ConsoleGameUI {
             playerNames.add(name);
         }
 
-        Set<String> aiPlayerNames = new HashSet<>();
+        Map<String, AIDifficulty> aiDifficulties = new HashMap<String, AIDifficulty>();
         for (String name : playerNames) {
-            System.out.print("Is \"" + name + "\" a human player? (y/n): ");
-            String answer = scanner.nextLine().trim().toLowerCase();
-            if (!answer.isEmpty() && !answer.startsWith("y")) {
-                aiPlayerNames.add(name);
-                System.out.println("  → " + name + " will be controlled by the AI.");
+            if (!readYesNo("Is \"" + name + "\" a human player? (y/n): ")) {
+                AIDifficulty difficulty = readAIDifficulty(name);
+                aiDifficulties.put(name, difficulty);
+                System.out.println("  -> " + name + " will be controlled by the AI (" + difficulty + ").");
             }
         }
 
-        return GameSetup.createGame(
-                playerNames,
-                aiPlayerNames,
-                "config.properties");
+        return GameSetup.createGame(playerNames, aiDifficulties, "config.properties");
     }
+
     void runTurn(GameEngine engine) {
         Player current = engine.getCurrentPlayer();
 
@@ -127,7 +125,7 @@ public class ConsoleGameUI {
                     yield engine.takeTwoSameGems(gems.get(0));
                 }
                 if (gems.size() == 3) {
-                    yield engine.takeThreeDifferentGems(gems.get(0), gems.get(1), gems.get(2));
+                    yield engine.takeDifferentGems(gems);
                 }
                 yield false;
             }
@@ -148,18 +146,19 @@ public class ConsoleGameUI {
         };
 
         if (success) {
+            handleAIDiscardExcessGems(engine, ai);
             lastSuccessMessage = "[AI] " + ai.getName() + " completed: " + action;
             renderer.printSuccess(lastSuccessMessage);
             pauseForEnter();
             if (!engine.isGameOver()) {
-                engine.nextTurn(); 
+                engine.nextTurn();
             }
         } else {
-            renderer.printError("[AI] Action failed — skipping turn.");
+            renderer.printError("[AI] Action failed - skipping turn.");
             pauseForEnter();
             engine.nextTurn();
         }
-}
+    }
 
     private void handleHumanTurn(GameEngine engine) {
         boolean turnFinished = false;
@@ -211,6 +210,10 @@ public class ConsoleGameUI {
             if (choice == ACTION_BUY_RESERVED) {
                 return handleBuyReservedCard(engine);
             }
+            if (choice == ACTION_PASS) {
+                lastSuccessMessage = "Turn passed - no actions available.";
+                return true;
+            }
 
             return confirmQuit();
         } catch (IllegalArgumentException e) {
@@ -220,12 +223,6 @@ public class ConsoleGameUI {
     }
 
     private boolean handleTakeThreeDifferentGems(GameEngine engine) {
-        Player player = engine.getCurrentPlayer();
-        if (player.getTotalGems() + 3 > 10) {
-            renderer.printError("You cannot take 3 gems because that would put you over the 10-token limit.");
-            return false;
-        }
-
         List<GemColor> firstOptions = getAvailableGemColors(engine, 1, new ArrayList<GemColor>());
         if (firstOptions.size() < 3) {
             renderer.printError("You cannot take 3 different gems because fewer than 3 gem colors are available in the bank.");
@@ -269,18 +266,13 @@ public class ConsoleGameUI {
 
         boolean success = engine.takeThreeDifferentGems(first, second, third);
         if (success) {
+            handleHumanDiscardExcessGems(engine);
             lastSuccessMessage = "Took gems: " + renderer.formatGemSelection(selections);
         }
         return success;
     }
 
     private boolean handleTakeTwoSameGems(GameEngine engine) {
-        Player player = engine.getCurrentPlayer();
-        if (player.getTotalGems() + 2 > 10) {
-            renderer.printError("You cannot take 2 gems because that would put you over the 10-token limit.");
-            return false;
-        }
-
         List<GemColor> options = getAvailableGemColors(engine, 4, new ArrayList<GemColor>());
         if (options.isEmpty()) {
             renderer.printError("You cannot take 2 of the same gem because no color has at least 4 tokens in the bank.");
@@ -303,6 +295,7 @@ public class ConsoleGameUI {
 
         boolean success = engine.takeTwoSameGems(color);
         if (success) {
+            handleHumanDiscardExcessGems(engine);
             lastSuccessMessage = "Took gems: " + renderer.formatGemSelection(selections);
         }
         return success;
@@ -332,7 +325,11 @@ public class ConsoleGameUI {
         if (index == null) {
             return cancelCurrentAction();
         }
-        return engine.reserveVisibleCard(tier, index - 1);
+        boolean success = engine.reserveVisibleCard(tier, index - 1);
+        if (success) {
+            handleHumanDiscardExcessGems(engine);
+        }
+        return success;
     }
 
     private boolean handleReserveTopCard(GameEngine engine) {
@@ -352,7 +349,11 @@ public class ConsoleGameUI {
         if (tier == null) {
             return cancelCurrentAction();
         }
-        return engine.reserveTopCard(tier);
+        boolean success = engine.reserveTopCard(tier);
+        if (success) {
+            handleHumanDiscardExcessGems(engine);
+        }
+        return success;
     }
 
     private boolean handleBuyVisibleCard(GameEngine engine) {
@@ -428,6 +429,11 @@ public class ConsoleGameUI {
         addActionMenuItem(availableActions, ACTION_BUY_RESERVED, "Buy a reserved card",
                 getBuyReservedCardUnavailableReason(engine));
 
+        if (availableActions.isEmpty()) {
+            availableActions.add(ACTION_PASS);
+            renderer.printActionOption(availableActions.size(), "Pass turn");
+        }
+
         availableActions.add(ACTION_QUIT);
         renderer.printActionOption(availableActions.size(), "Quit");
         return availableActions;
@@ -448,6 +454,12 @@ public class ConsoleGameUI {
         if (choice == null) {
             return null;
         }
+        return options.get(choice - 1);
+    }
+
+    private GemColor readGemColorFromPlayerOptions(List<GemColor> options, Player player, String prompt) {
+        renderer.printGemChoicesFromPlayer("Choose A Gem Color", options, player);
+        int choice = readIntInRange(prompt, 1, options.size());
         return options.get(choice - 1);
     }
 
@@ -488,6 +500,16 @@ public class ConsoleGameUI {
 
             renderer.printError("Please enter 0 to go back or a number from " + min + " to " + max + ".");
         }
+    }
+
+    private AIDifficulty readAIDifficulty(String playerName) {
+        AIDifficulty[] values = AIDifficulty.values();
+        System.out.println("  Select difficulty for " + playerName + ":");
+        for (int i = 0; i < values.length; i++) {
+            System.out.println("    [" + (i + 1) + "] " + values[i]);
+        }
+        int choice = readIntInRange("  Difficulty: ", 1, values.length);
+        return values[choice - 1];
     }
 
     private String readNonEmptyLine(String prompt) {
@@ -532,24 +554,14 @@ public class ConsoleGameUI {
     }
 
     private String getTakeThreeDifferentGemsUnavailableReason(GameEngine engine) {
-        Player player = engine.getCurrentPlayer();
-        if (player.getTotalGems() + 3 > 10) {
-            return "would put you over the 10-token limit";
-        }
-
-        if (getAvailableGemColors(engine, 1, new ArrayList<GemColor>()).size() < 3) {
-            return "fewer than 3 gem colors are available in the bank";
+        if (getAvailableGemColors(engine, 1, new ArrayList<GemColor>()).isEmpty()) {
+            return "no gem colors are available in the bank";
         }
 
         return null;
     }
 
     private String getTakeTwoSameGemsUnavailableReason(GameEngine engine) {
-        Player player = engine.getCurrentPlayer();
-        if (player.getTotalGems() + 2 > 10) {
-            return "would put you over the 10-token limit";
-        }
-
         if (getAvailableGemColors(engine, 4, new ArrayList<GemColor>()).isEmpty()) {
             return "no gem color has at least 4 tokens in the bank";
         }
@@ -561,11 +573,6 @@ public class ConsoleGameUI {
         Player player = engine.getCurrentPlayer();
         if (player.getReservedCards().size() >= 3) {
             return "you already have 3 reserved cards";
-        }
-
-        int goldToTake = engine.getGameState().getGemBank().getGemCount(GemColor.GOLD) > 0 ? 1 : 0;
-        if (player.getTotalGems() + goldToTake > 10) {
-            return "taking the gold token would put you over the 10-token limit";
         }
 
         return null;
@@ -686,6 +693,49 @@ public class ConsoleGameUI {
     private void pauseForEnter() {
         System.out.print(renderer.prompt("Press Enter to continue..."));
         scanner.nextLine();
+    }
+
+    private void handleHumanDiscardExcessGems(GameEngine engine) {
+        Player player = engine.getCurrentPlayer();
+        while (player.getTotalGems() > 10) {
+            int excess = player.getTotalGems() - 10;
+            renderer.clearScreen();
+            renderer.printGameState(engine.getGameState());
+            renderer.printInfo("You have " + player.getTotalGems()
+                    + " tokens, so discard " + excess + " more to finish your turn.");
+
+            List<GemColor> options = getPlayerHeldGemColors(player);
+            GemColor toDiscard = readGemColorFromPlayerOptions(options, player, "Choose a gem to discard: ");
+            engine.discardGem(toDiscard);
+        }
+    }
+
+    private void handleAIDiscardExcessGems(GameEngine engine, AIPlayer ai) {
+        while (ai.getTotalGems() > 10) {
+            GemColor toDiscard = ai.chooseGemToDiscard(engine.getGameState());
+            if (toDiscard == null || ai.getGemCount(toDiscard) < 1) {
+                List<GemColor> options = getPlayerHeldGemColors(ai);
+                if (options.isEmpty()) {
+                    return;
+                }
+                toDiscard = options.get(0);
+            }
+
+            if (!engine.discardGem(toDiscard)) {
+                return;
+            }
+            renderer.printInfo("[AI] " + ai.getName() + " discards: " + toDiscard);
+        }
+    }
+
+    private List<GemColor> getPlayerHeldGemColors(Player player) {
+        List<GemColor> options = new ArrayList<GemColor>();
+        for (GemColor color : GemColor.values()) {
+            if (player.getGemCount(color) > 0) {
+                options.add(color);
+            }
+        }
+        return options;
     }
 
     private boolean cancelCurrentAction() {

@@ -8,6 +8,7 @@ import splendor.entities.Noble;
 import splendor.entities.Player;
 import splendor.entities.Tier;
 import splendor.logic.GameState;
+
 // this class has methods to help format the output for aesthetics
 public class ConsoleRenderer {
     private static final String TOP_LEFT_CORNER = "\u250C";
@@ -95,6 +96,19 @@ public class ConsoleRenderer {
                     + gemIcon(color) + " "
                     + padRight(Ansi.wrap(Ansi.colorForGem(color), color.name()), 18)
                     + " bank=" + styledAmount(color, gameState.getGemBank().getGemCount(color));
+            System.out.println(label);
+        }
+        System.out.println();
+    }
+
+    public void printGemChoicesFromPlayer(String title, List<GemColor> options, Player player) {
+        System.out.println(sectionTitle(title));
+        for (int i = 0; i < options.size(); i++) {
+            GemColor color = options.get(i);
+            String label = "  [" + (i + 1) + "] "
+                    + gemIcon(color) + " "
+                    + padRight(Ansi.wrap(Ansi.colorForGem(color), color.name()), 18)
+                    + " hand=" + styledAmount(color, player.getGemCount(color));
             System.out.println(label);
         }
         System.out.println();
@@ -295,14 +309,14 @@ public class ConsoleRenderer {
         String top = TOP_LEFT_CORNER + repeat(HORIZONTAL_LINE, CARD_INNER_WIDTH) + TOP_RIGHT_CORNER;
         String bottom = BOTTOM_LEFT_CORNER + repeat(HORIZONTAL_LINE, CARD_INNER_WIDTH) + BOTTOM_RIGHT_CORNER;
 
-        lines.add(Ansi.wrap(borderColor, top)); //print top border
+        lines.add(Ansi.wrap(borderColor, top));
         lines.add(wrapCardLine(borderColor, fitTwoSides(label + " T" + tierNumber(card.getTier()), card.getPoints() + "P", CARD_INNER_WIDTH)));
-        lines.add(wrapCardLine(borderColor, fitToWidth("", CARD_INNER_WIDTH))); //print empty line
+        lines.add(wrapCardLine(borderColor, fitToWidth("", CARD_INNER_WIDTH)));
         List<String> costs = buildCostParts(card);
-        lines.add(wrapCardLine(borderColor, center(costs.get(0), CARD_INNER_WIDTH))); // 1st line of gems costs
-        lines.add(wrapCardLine(borderColor, center(costs.get(1), CARD_INNER_WIDTH))); //2nd line of gem costs (may be empty), not empty if more than 3 types of gems cost
-        lines.add(wrapCardLine(borderColor, fitTwoSides("bonus", gemIcon(card.getBonus()), CARD_INNER_WIDTH))); //the type of bonus
-        lines.add(Ansi.wrap(borderColor, bottom)); //bottom line
+        lines.add(wrapCardLine(borderColor, center(costs.get(0), CARD_INNER_WIDTH)));
+        lines.add(wrapCardLine(borderColor, center(costs.get(1), CARD_INNER_WIDTH)));
+        lines.add(wrapCardLine(borderColor, fitTwoSides("bonus", gemIcon(card.getBonus()), CARD_INNER_WIDTH)));
+        lines.add(Ansi.wrap(borderColor, bottom));
         return lines;
     }
 
@@ -589,6 +603,7 @@ public class ConsoleRenderer {
         }
         return width;
     }
+
     // makes sure the text fits the exact width needed for the card layout
     // if it is too long, trim it; if it is too short, pad it with spaces
     private String fitToWidth(String text, int width) {

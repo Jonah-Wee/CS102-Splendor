@@ -1,5 +1,6 @@
 package splendor.logic.ai;
 
+import splendor.entities.GemColor;
 import splendor.entities.Player;
 import splendor.logic.GameState;
 
@@ -17,4 +18,13 @@ public interface AIStrategy {
      * @return a fully-specified AIAction ready to be executed
      */
     AIAction selectAction(GameState state, Player self);
+
+    /**
+     * Choose a gem to discard when the player is over the 10-token limit.
+     *
+     * @param state the current game state
+     * @param self  the AI player who must discard
+     * @return the gem color to discard
+     */
+    GemColor chooseGemToDiscard(GameState state, Player self);
 }

@@ -45,16 +45,12 @@ public class GameEngine {
             return false;
         }
 
-        Player player = getCurrentPlayer();
-        if (player.getTotalGems() + 3 > 10) {
-            return false;
-        }
-
         GemBank bank = gameState.getGemBank();
         if (!bank.hasAtLeast(first, 1) || !bank.hasAtLeast(second, 1) || !bank.hasAtLeast(third, 1)) {
             return false;
         }
 
+        Player player = getCurrentPlayer();
         bank.takeGem(first);
         bank.takeGem(second);
         bank.takeGem(third);
@@ -72,19 +68,35 @@ public class GameEngine {
             return false;
         }
 
-        Player player = getCurrentPlayer();
-        if (player.getTotalGems() + 2 > 10) {
-            return false;
-        }
-
         GemBank bank = gameState.getGemBank();
         if (!bank.hasAtLeast(color, 4)) {
             return false;
         }
 
+        Player player = getCurrentPlayer();
         bank.takeGem(color);
         bank.takeGem(color);
         player.addGem(color, 2);
+        return true;
+    }
+
+    public boolean takeDifferentGems(List<GemColor> colors) {
+        if (colors == null || colors.size() != 3) {
+            return false;
+        }
+        return takeThreeDifferentGems(colors.get(0), colors.get(1), colors.get(2));
+    }
+
+    public boolean discardGem(GemColor color) {
+        if (color == null) {
+            throw new IllegalArgumentException("Gem color cannot be null");
+        }
+        Player player = getCurrentPlayer();
+        if (player.getGemCount(color) < 1) {
+            return false;
+        }
+        player.removeGem(color, 1);
+        gameState.getGemBank().addGem(color);
         return true;
     }
 
@@ -104,9 +116,6 @@ public class GameEngine {
         }
 
         int goldToTake = gameState.getGemBank().hasAtLeast(GemColor.GOLD, 1) ? 1 : 0;
-        if (player.getTotalGems() + goldToTake > 10) {
-            return false;
-        }
 
         Card card = gameState.removeVisibleCard(tier, slotIndex);
         player.addReservedCard(card);
@@ -131,9 +140,6 @@ public class GameEngine {
         }
 
         int goldToTake = gameState.getGemBank().hasAtLeast(GemColor.GOLD, 1) ? 1 : 0;
-        if (player.getTotalGems() + goldToTake > 10) {
-            return false;
-        }
 
         Card card = gameState.getDeck(tier).drawCard();
         if (card == null) {
