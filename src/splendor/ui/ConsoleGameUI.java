@@ -80,9 +80,7 @@ public class ConsoleGameUI {
 
         Map<String, AIDifficulty> aiDifficulties = new HashMap<String, AIDifficulty>();
         for (String name : playerNames) {
-            System.out.print("Is \"" + name + "\" a human player? (y/n): ");
-            String answer = scanner.nextLine().trim().toLowerCase();
-            if (!answer.isEmpty() && !answer.startsWith("y")) {
+            if (!readYesNo("Is \"" + name + "\" a human player? (y/n): ")) {
                 AIDifficulty difficulty = readAIDifficulty(name);
                 aiDifficulties.put(name, difficulty);
                 System.out.println("  -> " + name + " will be controlled by the AI (" + difficulty + ").");
@@ -556,8 +554,8 @@ public class ConsoleGameUI {
     }
 
     private String getTakeThreeDifferentGemsUnavailableReason(GameEngine engine) {
-        if (getAvailableGemColors(engine, 1, new ArrayList<GemColor>()).size() < 3) {
-            return "fewer than 3 gem colors are available in the bank";
+        if (getAvailableGemColors(engine, 1, new ArrayList<GemColor>()).isEmpty()) {
+            return "no gem colors are available in the bank";
         }
 
         return null;

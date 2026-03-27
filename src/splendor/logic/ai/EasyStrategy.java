@@ -15,12 +15,14 @@ import splendor.logic.GameState;
  *
  * Decision priority (highest to lowest):
  *  1. Buy the first affordable visible card found (no scoring).
- *  2. Take 3 different gems from whatever is available (no targeting).
- *  TODO 3. Take 2 same gems if possible (no targeting)
- *  TODO 4. Reserve a card at random
- * 
+ *  2. Buy the first affordable reserved card found (no scoring).
+ *  3. Take 3 different gems from whatever is available (no targeting).
+ *  4. Take 2 same gems if possible (no targeting).
+ *  5. Reserve a card at random.
  */
 public class EasyStrategy implements AIStrategy {
+
+    private final Random random = new Random();
 
     @Override
     public AIAction selectAction(GameState state, Player self) {
@@ -29,24 +31,32 @@ public class EasyStrategy implements AIStrategy {
             return buyVisible;
         }
 
-        AIAction takeGems = takeGems(state, self);
-        if (takeGems != null) {
-            return takeGems;
-        }
+        // --- 2. Buy the first affordable reserved card ---------------------------
+        AIAction buyReserved = tryBuyReserved(self);
+        if (buyReserved != null) return buyReserved;
 
-        return null;
+        // --- 3. Take 3 different gems (no targeting) -----------------------------
+        AIAction threeGems = tryTakeThreeGems(state);
+        if (threeGems != null) return threeGems;
+
+        // --- 4. Take 2 same gems (no targeting) ----------------------------------
+        AIAction twoGems = tryTakeTwoSameGems(state);
+        if (twoGems != null) return twoGems;
+
+        // --- 5. Reserve a card at random -----------------------------------------
+        AIAction reserve = tryReserveRandom(state, self);
+        if (reserve != null) return reserve;
+
+        return AIAction.takeGems(List.of());
     }
 
-    // Step 1 — buy the first affordable visible card, no preference for points
+    // Step 1 — buy the first affordable visible card, no preference
     private AIAction tryBuyVisible(GameState state, Player self) {
         for (Tier tier : Tier.values()) {
             List<Card> visible = state.getVisibleCards(tier);
             for (int i = 0; i < visible.size(); i++) {
                 Card card = visible.get(i);
-
-                // checks if there is a card unreplaced
                 if (card == null) continue;
-                
                 if (canAfford(self, card)) {
                     return AIAction.buyVisible(tier, i);
                 }
@@ -55,8 +65,19 @@ public class EasyStrategy implements AIStrategy {
         return null;
     }
 
-    // Step 2 — take up to 3 different gems from whatever is available in the bank
-    private AIAction takeGems(GameState state, Player self) {
+    // Step 2 — buy the first affordable reserved card, no preference
+    private AIAction tryBuyReserved(Player self) {
+        List<Card> reserved = self.getReservedCards();
+        for (int i = 0; i < reserved.size(); i++) {
+            if (canAfford(self, reserved.get(i))) {
+                return AIAction.buyReserved(i);
+            }
+        }
+        return null;
+    }
+
+    // Step 3 — take up to 3 different gems from whatever is available in the bank
+    private AIAction tryTakeThreeGems(GameState state) {
         GemBank bank = state.getGemBank();
         List<GemColor> toTake = new ArrayList<>();
 
@@ -67,19 +88,38 @@ public class EasyStrategy implements AIStrategy {
             }
         }
 
-        if (toTake.size() >= 3) {
-            return AIAction.takeGems(toTake.subList(0, 3));
-        }
+        return toTake.size() >= 3 ? AIAction.takeGems(toTake) : null;
+    }
 
+    // Step 4 — take 2 of the same gem if any color has at least 4 in the bank
+    private AIAction tryTakeTwoSameGems(GameState state) {
+        GemBank bank = state.getGemBank();
         for (GemColor color : GemColor.values()) {
             if (color != GemColor.GOLD && bank.getGemCount(color) >= 4) {
                 return AIAction.takeGems(List.of(color, color));
             }
         }
-
         return null;
     }
-    
+
+    // Step 5 — reserve a random visible card if hand has room
+    private AIAction tryReserveRandom(GameState state, Player self) {
+        if (self.getReservedCards().size() >= 3) return null;
+
+        List<Tier> tiersWithCards = new ArrayList<>();
+        for (Tier tier : Tier.values()) {
+            if (!state.getVisibleCards(tier).isEmpty()) {
+                tiersWithCards.add(tier);
+            }
+        }
+        if (tiersWithCards.isEmpty()) return null;
+
+        Tier tier = tiersWithCards.get(random.nextInt(tiersWithCards.size()));
+        List<Card> visible = state.getVisibleCards(tier);
+        int slot = random.nextInt(visible.size());
+        return AIAction.reserveVisible(tier, slot);
+    }
+
     // Discard logic — pick a random gem from the player's hand
 
     @Override

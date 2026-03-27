@@ -21,11 +21,13 @@ import splendor.logic.GameState;
  *
  * Decision priority (highest to lowest):
  *  1. Buy a reserved card if affordable.
- *  2. Buy a visible card.
- *  3. Reserve a good tier-2 or tier-3 card.
- *  4. Take gems toward the best target card.
- *  5. Fallback to another valid gem-taking move.
+ *  2. Buy a visible card — prefer highest points, break ties by cheapest cost.
+ *  3. Reserve a tier-2 or tier-3 card if hand has room and a good target exists.
+ *  4. Take gems that make the most progress toward the cheapest reachable card.
+ *  5. Take whatever gems are available (3 different, 2 same, or fewer).
+ *  6. Reserve from top of deck if hand has room.
  */
+
 public class MediumStrategy implements AIStrategy {
 
     @Override
@@ -50,7 +52,15 @@ public class MediumStrategy implements AIStrategy {
             return takeGems;
         }
 
-        return fallbackTakeGems(state, self);
+        // --- 5. Take whatever gems are available -----------------------------------
+        AIAction gems = takeAvailableGems(state);
+        if (gems != null) return gems;
+
+        // --- 6. Reserve from top of deck if hand has room ------------------------
+        AIAction reserveTop = tryReserveTopOfDeck(state, self);
+        if (reserveTop != null) return reserveTop;
+
+        return AIAction.takeGems(List.of());
     }
 
     private AIAction tryBuyReserved(GameState state, Player self) {
@@ -176,23 +186,47 @@ public class MediumStrategy implements AIStrategy {
         return null;
     }
 
-    private AIAction fallbackTakeGems(GameState state, Player self) {
-        GemBank bank = state.getGemBank();
-        List<GemColor> available = Arrays.stream(GemColor.values())
-                .filter(color -> color != GemColor.GOLD && bank.getGemCount(color) > 0)
-                .limit(3)
-                .collect(Collectors.toList());
+    // Step 5 — take whatever gems are available
 
+    private AIAction takeAvailableGems(GameState state) {
+        GemBank bank = state.getGemBank();
+
+        // Try to take 3 different gems
+        List<GemColor> available = new ArrayList<>();
+        for (GemColor color : GemColor.values()) {
+            if (color != GemColor.GOLD && bank.getGemCount(color) > 0) {
+                available.add(color);
+            }
+        }
         if (available.size() >= 3) {
             return AIAction.takeGems(available.subList(0, 3));
         }
 
+        // Try to take 2 of the same if any color has >= 4
         for (GemColor color : GemColor.values()) {
             if (color != GemColor.GOLD && bank.getGemCount(color) >= 4) {
                 return AIAction.takeGems(List.of(color, color));
             }
         }
 
+        // Take whatever different gems remain (1 or 2)
+        if (!available.isEmpty()) {
+            return AIAction.takeGems(available);
+        }
+
+        return null;
+    }
+
+    // Step 6 — reserve from top of deck as a last resort to get gold
+    private AIAction tryReserveTopOfDeck(GameState state, Player self) {
+        if (self.getReservedCards().size() >= 3) return null;
+
+        // Prefer higher tiers for better expected value
+        for (Tier tier : List.of(Tier.THREE, Tier.TWO, Tier.ONE)) {
+            if (!state.getDeck(tier).isEmpty()) {
+                return AIAction.reserveTopOfDeck(tier);
+            }
+        }
         return null;
     }
 
