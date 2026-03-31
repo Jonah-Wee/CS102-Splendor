@@ -1,4 +1,3 @@
-// Loader skeleton initially generated with GPT-5.4, parsing logic was checked and adjusted manually.
 package splendor.data;
 
 import java.io.BufferedReader;
