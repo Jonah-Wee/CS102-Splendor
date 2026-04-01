@@ -25,6 +25,7 @@ public class EasyStrategy implements AIStrategy {
 
     @Override
     public AIAction selectAction(GameState state, Player self) {
+        // --- 1. Buy the first affordable visible card ---------------------------
         AIAction buyVisible = tryBuyVisible(state, self);
         if (buyVisible != null) {
             return buyVisible;
