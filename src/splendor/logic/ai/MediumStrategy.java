@@ -26,27 +26,31 @@ public class MediumStrategy implements AIStrategy {
 
     @Override
     public AIAction selectAction(GameState state, Player self) {
+        // --- 1. Buy best affordable reserved card ----------------------------------
         AIAction buyReserved = tryBuyReserved(state, self);
         if (buyReserved != null) {
             return buyReserved;
         }
 
+        // --- 2. Buy best affordable visible card -----------------------------------
         AIAction buyVisible = tryBuyVisible(state, self);
         if (buyVisible != null) {
             return buyVisible;
         }
 
+        // --- 3. Reserve a high-tier unaffordable card -----------------------------
         AIAction reserve = tryReserve(state, self);
         if (reserve != null) {
             return reserve;
         }
 
+        // --- 4. Take gems towards the closest highest tier card ------------------
         AIAction takeGems = tryTakeGemsTowardTarget(state, self);
         if (takeGems != null) {
             return takeGems;
         }
 
-        // --- 5. Take whatever gems are available -----------------------------------
+        // --- 5. Take whatever gems are available ---------------------------------
         AIAction gems = takeAvailableGems(state);
         if (gems != null) return gems;
 
@@ -57,6 +61,7 @@ public class MediumStrategy implements AIStrategy {
         return AIAction.takeGems(List.of());
     }
 
+    // Step 1 - buy the highest-scoring reserved card the player can afford
     private AIAction tryBuyReserved(GameState state, Player self) {
         List<Card> reserved = self.getReservedCards();
         Card best = null;
@@ -77,6 +82,7 @@ public class MediumStrategy implements AIStrategy {
         return best != null ? AIAction.buyReserved(bestIndex) : null;
     }
 
+    // Step 2 - buy the highest-scoring visible board card the player can afford
     private AIAction tryBuyVisible(GameState state, Player self) {
         Card best = null;
         Tier bestTier = null;
@@ -104,6 +110,7 @@ public class MediumStrategy implements AIStrategy {
         return best != null ? AIAction.buyVisible(bestTier, bestSlot) : null;
     }
 
+    // Step 3 - reserve the highest-scoring unaffordable tier 2/3 card worth >= 2 points
     private AIAction tryReserve(GameState state, Player self) {
         if (self.getReservedCards().size() >= 3) {
             return null;
@@ -135,6 +142,7 @@ public class MediumStrategy implements AIStrategy {
         return best != null ? AIAction.reserveVisible(bestTier, bestSlot) : null;
     }
 
+    // Step 4 - take gems that reduce shortage for the closest affordable target card
     private AIAction tryTakeGemsTowardTarget(GameState state, Player self) {
         Card target = findBestTarget(state, self);
         if (target == null) {
@@ -224,6 +232,7 @@ public class MediumStrategy implements AIStrategy {
         return null;
     }
 
+    // Discard the non-gold color with the most excess relative to the target
     @Override
     public GemColor chooseGemToDiscard(GameState state, Player self) {
         Card target = findBestTarget(state, self);
@@ -263,6 +272,8 @@ public class MediumStrategy implements AIStrategy {
         return GemColor.GOLD;
     }
 
+    // Helpers
+    // Returns true if the player's gems + bonuses + gold can cover the card's cost
     private boolean canAfford(Player player, Card card, GemBank bank) {
         int goldNeeded = 0;
         for (GemColor color : GemColor.values()) {
@@ -287,6 +298,7 @@ public class MediumStrategy implements AIStrategy {
         return score;
     }
 
+    // Returns the visible card with the smallest total gem shortage (closest to affordable)
     private Card findBestTarget(GameState state, Player self) {
         Card bestCard = null;
         int minShortage = Integer.MAX_VALUE;
